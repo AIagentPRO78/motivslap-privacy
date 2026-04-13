@@ -3,7 +3,6 @@ pages:
   script:
     - mkdir -p public
     - cp event-flyer.html public/index.html
-    - cp index.html public/privacy.html
   artifacts:
     paths:
       - public
