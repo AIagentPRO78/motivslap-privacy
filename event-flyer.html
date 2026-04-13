@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build with Claude on AWS Bedrock — Event</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+        }
+
+        /* Hero Section */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 60px 24px;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(214, 131, 52, 0.15) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 60%, rgba(255, 153, 0, 0.1) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 80%, rgba(100, 100, 255, 0.08) 0%, transparent 40%);
+            animation: drift 20s ease-in-out infinite;
+        }
+
+        @keyframes drift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(20px, -30px) rotate(1deg); }
+            66% { transform: translate(-15px, 15px) rotate(-1deg); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+        }
+
+        .logos {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .logo-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .logo-badge.claude {
+            color: #d4a574;
+            border-color: rgba(212, 165, 116, 0.3);
+        }
+
+        .logo-badge.aws {
+            color: #ff9900;
+            border-color: rgba(255, 153, 0, 0.3);
+        }
+
+        .logo-connector {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 20px;
+            font-weight: 300;
+        }
+
+        .event-type {
+            display: inline-block;
+            background: linear-gradient(135deg, #ff9900, #d4a574);
+            color: #0a0a0a;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 6px 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: clamp(36px, 6vw, 64px);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            letter-spacing: -1.5px;
+        }
+
+        h1 .gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #ff9900 50%, #d4a574 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: clamp(16px, 2.2vw, 20px);
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.6;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .event-meta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 40px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .meta-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 153, 0, 0.1);
+            border: 1px solid rgba(255, 153, 0, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .meta-text {
+            text-align: left;
+        }
+
+        .meta-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .meta-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .cta-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #ff9900, #e08800);
+            color: #0a0a0a;
+            font-size: 16px;
+            font-weight: 700;
+            padding: 16px 36px;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 24px rgba(255, 153, 0, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(255, 153, 0, 0.4);
+        }
+
+        .cta-arrow {
+            font-size: 18px;
+            transition: transform 0.3s ease;
+        }
+
+        .cta-button:hover .cta-arrow {
+            transform: translateX(4px);
+        }
+
+        /* Agenda Section */
+        .section {
+            padding: 80px 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #ff9900;
+            margin-bottom: 12px;
+        }
+
+        .section h2 {
+            font-size: clamp(28px, 4vw, 40px);
+            font-weight: 800;
+            margin-bottom: 48px;
+            letter-spacing: -0.5px;
+        }
+
+        .agenda {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .agenda-item {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 24px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .agenda-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 153, 0, 0.2);
+        }
+
+        .agenda-item.break-item {
+            background: transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.08);
+        }
+
+        .agenda-time {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ff9900;
+            padding-top: 2px;
+            white-space: nowrap;
+        }
+
+        .agenda-content h3 {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .agenda-content p {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            line-height: 1.5;
+        }
+
+        .agenda-tag {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .tag-keynote {
+            background: rgba(255, 153, 0, 0.15);
+            color: #ff9900;
+        }
+
+        .tag-workshop {
+            background: rgba(100, 200, 100, 0.15);
+            color: #64c864;
+        }
+
+        .tag-demo {
+            background: rgba(100, 150, 255, 0.15);
+            color: #6496ff;
+        }
+
+        .tag-panel {
+            background: rgba(200, 100, 255, 0.15);
+            color: #c864ff;
+        }
+
+        /* Topics Section */
+        .topics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .topic-card {
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .topic-card:hover {
+            border-color: rgba(255, 153, 0, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .topic-icon {
+            font-size: 28px;
+            margin-bottom: 14px;
+        }
+
+        .topic-card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .topic-card p {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.45);
+            line-height: 1.5;
+        }
+
+        /* Who Should Attend */
+        .audience-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .audience-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .audience-check {
+            color: #ff9900;
+            font-size: 16px;
+        }
+
+        /* Footer CTA */
+        .footer-cta {
+            text-align: center;
+            padding: 80px 24px 100px;
+            position: relative;
+        }
+
+        .footer-cta::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 300px;
+            background: radial-gradient(ellipse at 50% 100%, rgba(255, 153, 0, 0.08) 0%, transparent 70%);
+        }
+
+        .footer-cta h2 {
+            font-size: clamp(24px, 3.5vw, 36px);
+            font-weight: 800;
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .footer-cta p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 16px;
+            margin-bottom: 32px;
+            position: relative;
+        }
+
+        .footer-cta .cta-button {
+            position: relative;
+        }
+
+        .powered-by {
+            text-align: center;
+            padding: 24px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .logos {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .logo-connector { display: none; }
+            .event-meta {
+                flex-direction: column;
+                align-items: center;
+                gap: 16px;
+            }
+            .agenda-item {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="logos">
+                <span class="logo-badge claude">&#9672; Claude by Anthropic</span>
+                <span class="logo-connector">+</span>
+                <span class="logo-badge aws">&#9651; AWS Bedrock</span>
+            </div>
+
+            <div class="event-type">3-Hour Workshop &bull; Free Event</div>
+
+            <h1><span class="gradient">Build with Claude<br>on AWS Bedrock</span></h1>
+
+            <p class="subtitle">
+                Go from zero to production-ready AI applications. Learn to harness Claude's
+                reasoning power through AWS Bedrock with hands-on labs, live demos, and expert guidance.
+            </p>
+
+            <div class="event-meta">
+                <div class="meta-item">
+                    <div class="meta-icon">&#128197;</div>
+                    <div class="meta-text">
+                        <div class="meta-label">Date</div>
+                        <div class="meta-value">May 15, 2026</div>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon">&#128336;</div>
+                    <div class="meta-text">
+                        <div class="meta-label">Time</div>
+                        <div class="meta-value">10:00 AM &ndash; 1:00 PM</div>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon">&#127968;</div>
+                    <div class="meta-text">
+                        <div class="meta-label">Format</div>
+                        <div class="meta-value">In-Person + Virtual</div>
+                    </div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-icon">&#127919;</div>
+                    <div class="meta-text">
+                        <div class="meta-label">Level</div>
+                        <div class="meta-value">Beginner to Intermediate</div>
+                    </div>
+                </div>
+            </div>
+
+            <a href="#register" class="cta-button">
+                Register Now <span class="cta-arrow">&rarr;</span>
+            </a>
+        </div>
+    </section>
+
+    <!-- Agenda -->
+    <section class="section">
+        <span class="section-label">Agenda</span>
+        <h2>3 Hours. 6 Sessions. All Hands-On.</h2>
+
+        <div class="agenda">
+            <div class="agenda-item">
+                <div class="agenda-time">10:00 &ndash; 10:20</div>
+                <div class="agenda-content">
+                    <span class="agenda-tag tag-keynote">Keynote</span>
+                    <h3>The AI Opportunity: Claude + Bedrock</h3>
+                    <p>Why Claude on Bedrock is the fastest path from idea to production AI. Overview of Claude models (Opus, Sonnet, Haiku), Bedrock's managed infrastructure, and what makes this stack unique.</p>
+                </div>
+            </div>
+
+            <div class="agenda-item">
+                <div class="agenda-time">10:20 &ndash; 10:50</div>
+                <div class="agenda-content">
+                    <span class="agenda-tag tag-demo">Live Demo</span>
+                    <h3>Getting Started: First API Call to Bedrock</h3>
+                    <p>Set up IAM roles, configure the AWS SDK, and invoke Claude via the Bedrock Converse API. Prompt engineering fundamentals and streaming responses.</p>
+                </div>
+            </div>
+
+            <div class="agenda-item break-item">
+                <div class="agenda-time">10:50 &ndash; 11:00</div>
+                <div class="agenda-content">
+                    <h3>Break &amp; Networking</h3>
+                    <p>Grab a coffee and connect with fellow builders.</p>
+                </div>
+            </div>
+
+            <div class="agenda-item">
+                <div class="agenda-time">11:00 &ndash; 11:40</div>
+                <div class="agenda-content">
+                    <span class="agenda-tag tag-workshop">Hands-on Lab</span>
+                    <h3>Build an AI-Powered App with Claude</h3>
+                    <p>Code along as we build a real application &mdash; document summarizer, Q&A bot, or code assistant. Work with tool use, structured outputs, and multi-turn conversations.</p>
+                </div>
+            </div>
+
+            <div class="agenda-item">
+                <div class="agenda-time">11:40 &ndash; 12:20</div>
+                <div class="agenda-content">
+                    <span class="agenda-tag tag-workshop">Hands-on Lab</span>
+                    <h3>Agentic Workflows &amp; RAG Pipelines</h3>
+                    <p>Build an AI agent with tool use and multi-step reasoning. Connect Claude to Knowledge Bases for Bedrock for retrieval-augmented generation. Orchestrate with Bedrock Agents.</p>
+                </div>
+            </div>
+
+            <div class="agenda-item break-item">
+                <div class="agenda-time">12:20 &ndash; 12:30</div>
+                <div class="agenda-content">
+                    <h3>Break</h3>
+                    <p>Stretch and recharge.</p>
+                </div>
+            </div>
+
+            <div class="agenda-item">
+                <div class="agenda-time">12:30 &ndash; 12:50</div>
+                <div class="agenda-content">
+                    <span class="agenda-tag tag-demo">Deep Dive</span>
+                    <h3>Production Patterns &amp; Cost Optimization</h3>
+                    <p>Prompt caching, Bedrock Guardrails, batch API, cross-region inference, observability, and security best practices for enterprise deployments.</p>
+                </div>
+            </div>
+
+            <div class="agenda-item">
+                <div class="agenda-time">12:50 &ndash; 1:00</div>
+                <div class="agenda-content">
+                    <span class="agenda-tag tag-panel">Panel</span>
+                    <h3>Q&amp;A + What's Next</h3>
+                    <p>Open Q&amp;A with speakers. Resources, AWS credits, and community channels to keep building after the event.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Topics -->
+    <section class="section">
+        <span class="section-label">What You'll Learn</span>
+        <h2>Key Topics</h2>
+
+        <div class="topics-grid">
+            <div class="topic-card">
+                <div class="topic-icon">&#129504;</div>
+                <h3>Claude Model Family</h3>
+                <p>Understand when to use Opus, Sonnet, or Haiku. Extended thinking, long context windows, and reasoning capabilities.</p>
+            </div>
+            <div class="topic-card">
+                <div class="topic-icon">&#9889;</div>
+                <h3>Bedrock Converse API</h3>
+                <p>Unified API for model invocation, streaming, tool use, and multi-modal inputs including vision and documents.</p>
+            </div>
+            <div class="topic-card">
+                <div class="topic-icon">&#128295;</div>
+                <h3>Tool Use &amp; Agents</h3>
+                <p>Build agentic applications with function calling, multi-step orchestration, and Bedrock Agents action groups.</p>
+            </div>
+            <div class="topic-card">
+                <div class="topic-icon">&#128218;</div>
+                <h3>RAG &amp; Knowledge Bases</h3>
+                <p>Connect Claude to your data with Bedrock Knowledge Bases. Vector search, chunking strategies, and hybrid retrieval.</p>
+            </div>
+            <div class="topic-card">
+                <div class="topic-icon">&#128170;</div>
+                <h3>Prompt Caching</h3>
+                <p>Reduce costs up to 90% with intelligent prompt caching. Cache management and optimization strategies.</p>
+            </div>
+            <div class="topic-card">
+                <div class="topic-icon">&#128737;</div>
+                <h3>Guardrails &amp; Security</h3>
+                <p>Content filtering, PII redaction, VPC endpoints, IAM policies, and compliance frameworks for enterprise AI.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Who Should Attend -->
+    <section class="section">
+        <span class="section-label">Who Should Attend</span>
+        <h2>This Event Is For You If You're A...</h2>
+
+        <div class="audience-list">
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                Software Developer
+            </div>
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                Solutions Architect
+            </div>
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                Technical Lead / CTO
+            </div>
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                Data / ML Engineer
+            </div>
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                Product Manager
+            </div>
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                DevOps / Platform Eng
+            </div>
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                Startup Founder
+            </div>
+            <div class="audience-item">
+                <span class="audience-check">&#10003;</span>
+                AI Enthusiast
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer CTA -->
+    <section class="footer-cta" id="register">
+        <h2>Ready to Build the Future?</h2>
+        <p>Spots are limited. Reserve yours today and start building with Claude on AWS Bedrock.</p>
+        <a href="#" class="cta-button">
+            Register Now &mdash; It's Free <span class="cta-arrow">&rarr;</span>
+        </a>
+    </section>
+
+    <footer class="powered-by">
+        Powered by Anthropic Claude &amp; Amazon Web Services
+    </footer>
+
+</body>
+</html>
