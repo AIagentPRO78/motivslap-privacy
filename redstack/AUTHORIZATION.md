@@ -65,13 +65,21 @@ targets:
   ipv4_cidrs:
     - "203.0.113.0/26"
   ipv6_cidrs: []
-  cloud_accounts:
-    aws: ["123456789012"]
-    gcp: []
-    azure: []
+  k8s_clusters:
+    - context: "staging-k3s"
+      api_endpoint: "https://k3s-staging.acme.example:6443"
+  object_stores:
+    - endpoint: "https://minio-staging.acme.example"
+      buckets: ["releases"]
+  databases:
+    - endpoint: "postgres-staging.acme.example:5432"
+      engine: "postgres"
+  idps:
+    - endpoint: "https://auth.acme.example"
+      kind: "keycloak"
   repositories:
-    - "github.com/acme/web"
-    - "github.com/acme/api"
+    - "https://git.acme.example/acme/web"
+    - "https://git.acme.example/acme/api"
   mobile_bundles:
     - "com.acme.mobile"
   phishing_recipients_ref: "recipients-2026-04.csv.sha256"  # HR-approved list
@@ -146,7 +154,7 @@ without a new LOA addendum.
 Every SKILL.md preamble does, in this order:
 
 1. **Locate the engagement.** Read `engagement.json` from the engagement
-   bus (CLI: `~/.redstack/engagements/<active>/`, SaaS: per-request).
+   bus at `~/.redstack/engagements/<active>/` on the operator's Mac.
 2. **Verify the signature** of `scope.yaml.signed` using the customer key
    on file. If it fails, stop and log `scope_guard.signature_invalid`.
 3. **Check the time window.** Current UTC must fall within

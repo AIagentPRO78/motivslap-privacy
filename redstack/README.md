@@ -8,8 +8,12 @@ specialist role — recon, web-app, cloud, source review, network, identity,
 exploit-PoC, post-ex, purple-team, reporter — is a markdown skill that shares
 a common authorization spine, audit log, and finding schema.
 
-> **Status:** v0.1.0 — scaffold. Agent personas defined; CLI, engagement bus,
-> and crypto are M3+. See `ARCHITECTURE.md` for the full roadmap.
+> **Status:** v0.1.0 — scaffold. Agent personas defined; CLI, engagement
+> bus, and crypto are M3+. See `ARCHITECTURE.md` for the full roadmap.
+>
+> **Scope (v0.1):** MacBook-only operator (macOS arm64 / x86_64).
+> Self-hosted Linux / macOS targets only. No hyperscaler support
+> (AWS / GCP / Azure). No Windows / Active Directory / Microsoft 365.
 
 ## Authorized use only
 
@@ -21,16 +25,28 @@ signed Letter of Authorization. If you don't have an LOA, stop here.
 See [`AUTHORIZATION.md`](./AUTHORIZATION.md) for the scope model and
 [`ETHOS.md`](./ETHOS.md) for the operating principles.
 
-## Install (once CLI ships in M3)
+## Install (MacBook-only; CLI ships in M3)
 
 ```bash
+# Homebrew (recommended once the tap is live):
+brew install redstack/tap/redstack
+
+# Or, for development:
 git clone https://github.com/<org>/redstack ~/.claude/skills/redstack
 cd ~/.claude/skills/redstack
-./setup
+./setup                    # macOS-only; checks xcode-select, codesign, Keychain
 ```
 
-Until then, the SKILL.md files can be read directly by Claude Code when the
-repo is checked out — they are prompt templates, not compiled code.
+Requirements:
+
+- macOS 12 (Monterey) or later, arm64 or x86_64.
+- Claude Code installed (or another supported agent host).
+- OrbStack or Docker Desktop for the local lab (only needed when you
+  actually run an engagement with container-based scanners).
+
+Until the CLI ships, the SKILL.md files can be read directly by Claude
+Code when the repo is checked out — they are prompt templates, not
+compiled code.
 
 ## Quick start (design target)
 

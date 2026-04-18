@@ -5,13 +5,21 @@ action writes one entry. If it isn't in the log, it didn't happen.
 
 ## Storage
 
-- **CLI mode:** `~/.redstack/engagements/<eng-id>/audit.jsonl`
+MacBook-only. The log lives on the operator's Mac.
+
+- `~/.redstack/engagements/<eng-id>/audit.jsonl`
   - One JSON object per line, UTF-8, LF-terminated.
   - Append-only. `fsync` after every entry.
-  - Per-engagement key signs each entry; a daily Merkle root is signed
-    with the engagement key and optionally anchored externally.
-- **SaaS / appliance mode:** immutable Postgres table + S3 Object Lock
-  mirror. Same schema; same signing.
+  - Per-engagement Ed25519 key (stored in the macOS Keychain, service
+    `com.redstack.engagement`) signs each entry.
+  - A daily Merkle root is computed and can optionally be anchored to
+    a Sigstore Rekor log (opt-in per engagement).
+  - APFS snapshots are taken before any migration / retention action
+    so the log is always recoverable from a recent snapshot.
+
+No server-side storage. No SaaS. No off-Mac mirror unless the
+operator explicitly runs `redstack audit export <eng-id>` to produce
+a signed tarball.
 
 ## Entry schema
 
@@ -71,7 +79,7 @@ helper (`lib/audit-log.ts` in M3). The helper:
 1. Fills `ts`, `id`, `parent_id`, `engagement_id`, `operator_id`
    automatically.
 2. Signs the entry with the per-engagement key.
-3. Appends + `fsync`s (CLI) or transactionally inserts (SaaS).
+3. Appends + `fsync`s to the on-Mac JSONL file.
 4. Returns the new `id` so the caller can chain follow-up events.
 
 Writers NEVER include:

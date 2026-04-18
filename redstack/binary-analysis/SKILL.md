@@ -57,7 +57,9 @@ findings, not exploits.
 
 ### 1. Triage the artifact
 
-- Identify format (ELF, Mach-O, PE, raw firmware, OCI image, APK, IPA).
+- Identify format (ELF, Mach-O, raw firmware, OCI image, APK, IPA).
+  PE / Windows binaries are out of scope for redstack v0.1; refuse
+  and tell the operator.
 - Extract: symbols (where present), strings, embedded filesystems,
   config files, certs.
 - Hash the artifact; dedupe against prior engagement corpus.
@@ -69,7 +71,7 @@ findings, not exploits.
   - `grype` / `trivy` → CVE match against the SBOM.
   - Retire.js for embedded JS bundles.
 - **Hardening checks.**
-  - `checksec` on ELF/PE/Mach-O: ASLR/PIE, RELRO, stack canaries,
+  - `checksec` on ELF/Mach-O: ASLR/PIE, RELRO, stack canaries,
     NX/DEP, Fortify, CFI.
   - `secret` patterns with trufflehog on extracted strings.
 - **Capability inference.**
@@ -93,9 +95,10 @@ findings, not exploits.
 - **AFL++** or **libFuzzer** if fuzz harnesses are provided by the
   customer OR buildable from source-review output.
 - **ASAN / UBSAN** builds if source is in scope.
-- Crash triage: exploitability estimation via `!exploitable` for
-  Windows, `crash-triage` scripts for ELF, always marking exploitability
-  conservatively.
+- Crash triage: exploitability estimation via `crash-triage` scripts
+  for ELF / Mach-O artifacts, always marking exploitability
+  conservatively. (Windows binaries and PE crash analysis are out of
+  scope — redstack v0.1 is Linux/macOS only.)
 
 ### 4. Evidence capture
 

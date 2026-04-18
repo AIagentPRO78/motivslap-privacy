@@ -49,12 +49,18 @@ collect evidence and hand off to the customer's blue team.
 
 - `detection_recipe.yaml` from each PoC (emitted by `/exploit-poc`).
 - `post-exploitation.attack-path.json` (if post-ex ran).
-- Customer detection-platform read APIs:
-  - SIEM (Splunk, Sentinel, Chronicle, Elastic, etc.).
-  - EDR (CrowdStrike, SentinelOne, Defender for Endpoint, etc.).
-  - NDR (Darktrace, Vectra, etc.).
-  - WAF (Cloudflare, AWS WAF, Akamai, etc.).
-  - Email security (Proofpoint, Abnormal, Defender for O365).
+- Customer detection-platform read APIs. redstack v0.1 integrates with
+  self-hostable, open-source-first detection stacks; Microsoft / hyperscaler-
+  owned platforms (Sentinel, Defender for *, AWS GuardDuty, GCP Security
+  Command Center) are out of scope:
+  - SIEM: Elastic Security, OpenSearch Security, Wazuh, Grafana +
+    Loki/Mimir/Tempo, Graylog, self-hosted Splunk.
+  - EDR / runtime: Falco, Tetragon, Wazuh, Osquery + Fleet, Auditbeat.
+  - NDR: Suricata, Zeek, Arkime.
+  - WAF: Coraza, ModSecurity, OpenResty + lua-resty-waf, or the
+    customer's own edge proxy with custom rules.
+  - Email security: Rspamd, self-hosted SpamAssassin, or the customer's
+    own mail gateway.
 - `scope.notifications` to know who should have been paged for
   criticals.
 
@@ -116,14 +122,14 @@ Emit `purple-team.coverage.matrix.json`:
     ...
   },
   "by_platform": {
-    "siem:splunk":        { "expected": 14, "observed": 11 },
-    "edr:crowdstrike":    { "expected":  9, "observed":  9 },
-    "ndr:vectra":         { "expected":  6, "observed":  3 },
-    "waf:cloudflare":     { "expected":  8, "observed":  7 }
+    "siem:elastic":       { "expected": 14, "observed": 11 },
+    "edr:falco":          { "expected":  9, "observed":  9 },
+    "ndr:suricata":       { "expected":  6, "observed":  3 },
+    "waf:coraza":         { "expected":  8, "observed":  7 }
   },
   "critical_gaps": [
     "T1078 Valid Accounts — no EDR or SIEM detection on range host LAB-02",
-    "T1003 LSASS Credential Access — EDR blocked but no SIEM alert"
+    "T1552.004 Private Keys — harvest of planted key visible in Falco but not forwarded to SIEM"
   ]
 }
 ```

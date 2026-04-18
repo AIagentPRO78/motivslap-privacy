@@ -5,8 +5,9 @@ by `/triage`, `/exploit-poc`, `/purple-team`, and `/reporter`.
 
 ## Storage
 
-- **CLI:** `~/.redstack/engagements/<eng-id>/findings/<finding-id>.json`
-- **SaaS:** per-tenant Postgres table with the same schema.
+- `~/.redstack/engagements/<eng-id>/findings/<finding-id>.json` on the
+  operator's Mac. Indexed in the engagement SQLite database. No remote
+  storage in v0.1.
 
 ## Schema (v0.1)
 

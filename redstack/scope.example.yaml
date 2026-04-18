@@ -13,6 +13,11 @@
 #
 # Out-of-scope wins every tie. Product-level refusals (see AUTHORIZATION.md
 # §4) override anything permitted here.
+#
+# redstack v0.1 is MacBook-only and targets self-hosted Linux/macOS
+# infrastructure. Hyperscalers (AWS / GCP / Azure / etc.), Windows hosts,
+# Active Directory, and Microsoft 365 are NOT supported target classes —
+# the scope schema below does not model them.
 # ==========================================================================
 
 engagement:
@@ -26,6 +31,11 @@ engagement:
 # ----------------------------------------------------------------------------
 # In-scope assets. Any asset not listed is denied by default.
 # Wildcards allowed for hostnames; CIDR ranges for IPs.
+#
+# All targets must be self-hosted Linux or macOS infrastructure the
+# customer owns and controls. Hyperscaler-hosted assets and Windows /
+# Active Directory hosts are NOT supported target classes — scope-guard
+# refuses to load a scope that lists them.
 # ----------------------------------------------------------------------------
 targets:
   hostnames:
@@ -34,17 +44,37 @@ targets:
   ipv4_cidrs:
     - "203.0.113.0/26"
   ipv6_cidrs: []
-  cloud_accounts:
-    aws: ["123456789012"]
-    gcp: []
-    azure: []
+  # Self-hosted Kubernetes / container orchestrators the customer operates.
+  # Identify by kubeconfig context name and cluster API endpoint.
+  k8s_clusters:
+    - context: "staging-k3s"
+      api_endpoint: "https://k3s-staging.example.com:6443"
+  # Self-hosted object stores (S3-compatible API).
+  object_stores:
+    - endpoint: "https://minio-staging.example.com"
+      buckets: ["releases", "artifacts"]
+  # Self-hosted databases (Postgres, MariaDB, Redis, etc.).
+  databases:
+    - endpoint: "postgres-staging.example.com:5432"
+      engine: "postgres"
+  # Self-hosted identity providers (Keycloak / Authentik / Zitadel /
+  # Authelia / Dex). Active Directory is NOT a supported IdP class.
+  idps:
+    - endpoint: "https://auth.example.com"
+      kind: "keycloak"
+  # Repositories must be on a self-hosted forge (Gitea / Forgejo / GitLab
+  # self-managed). GitHub-hosted repos are supported ONLY if the customer
+  # treats the repo content as the tested artifact; redstack does not test
+  # GitHub.com as infrastructure.
   repositories:
-    - "github.com/example-corp/web"
-    - "github.com/example-corp/api"
+    - "https://git.example.com/example-corp/web"
+    - "https://git.example.com/example-corp/api"
+  # Mobile test bundles — iOS (.ipa) or Android (.apk), distributed
+  # through a customer-provisioned channel, NOT via hyperscaler app stores.
   mobile_bundles:
     - "com.example.mobile"
-  # Phishing recipients must be a pre-approved list with an HR sign-off hash.
-  # `/phishing-sim` refuses to run without this.
+  # Phishing recipients must be a pre-approved list with an HR sign-off
+  # hash. `/phishing-sim` refuses to run without this.
   phishing_recipients_ref: null
 
 # ----------------------------------------------------------------------------

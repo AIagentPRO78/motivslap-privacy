@@ -25,8 +25,8 @@ triggers:
 ## Preamble: engagement state check
 
 1. Check for an active engagement:
-   - CLI: `ls ~/.redstack/engagements/active 2>/dev/null`
-   - SaaS: GET `/v1/engagements?state=active&operator=<me>`
+   - `ls ~/.redstack/engagements/active 2>/dev/null` on the operator's
+     Mac. (MacBook-only; no remote bus in v0.1.)
 2. If NO active engagement:
    - Tell the operator: "No active engagement. Every redstack action
      requires a signed LOA and scope file. Start with `/office-hours` to
