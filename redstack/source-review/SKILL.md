@@ -80,8 +80,9 @@ with no network access except to its rule-pack update mirror.
   the secret, is stored. Redacted evidence.
 - **OSV + Snyk DB** (via `osv-scanner`) — SCA across the full dependency
   graph including transitives.
-- **checkov + KICS** — IaC (Terraform, CloudFormation, Kubernetes,
-  Helm, Dockerfiles).
+- **checkov + KICS + tfsec + conftest** — IaC (Terraform / Pulumi
+  for self-hosted providers, Kubernetes manifests, Helm, Kustomize,
+  Ansible, Dockerfiles, docker-compose).
 
 ### 3. Triage pass (reduce scanner noise)
 
@@ -104,9 +105,9 @@ For each scanner candidate:
 - If `/web-app` flagged "IDOR at /api/orders/:id" and `/source-review`
   finds the controller with no `authorize` call → same underlying
   finding, dedupe via `/triage`.
-- If `/cloud-audit` flagged "Lambda with admin role" and
-  `/source-review` finds the Lambda's IaC → attach the IaC location to
-  the cloud finding for remediation.
+- If `/cloud-audit` flagged "ServiceAccount with cluster-admin" and
+  `/source-review` finds the Helm chart / manifest that defines it →
+  attach the IaC location to the cloud-audit finding for remediation.
 
 ### 5. Evidence capture
 

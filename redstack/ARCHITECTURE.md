@@ -9,25 +9,43 @@
 
 ## 1. Product positioning
 
-**redstack** turns a Claude Code (or compatible agent host) install into a
-virtual offensive-security team operating under a signed Rules of Engagement
-(RoE). Each specialist role — recon, web-app, cloud, source review, network,
-identity, exploit-PoC, post-ex, purple-team, reporter, etc. — is a markdown
-SKILL persona that shares a common authorization spine, audit log, and finding
-schema.
+**redstack** is a **MacBook-only CLI** that turns Claude Code (or a compatible
+agent host) into a virtual offensive-security team for customers running
+**self-hosted Linux / macOS infrastructure**. Each specialist role — recon,
+web-app, infra-audit, source review, network, identity, exploit-PoC, post-ex,
+purple-team, reporter, etc. — is a markdown SKILL persona that shares a
+common authorization spine, audit log, and finding schema.
+
+**Scope boundary (v0.1):**
+
+- **Operator platform:** macOS only (arm64 + x86_64). No Linux or Windows
+  install targets for the operator's machine in v0.1.
+- **Target surface:** self-hosted Linux / macOS infrastructure. Kubernetes
+  (self-hosted distros: k3s, kind, kubeadm, k0s, OpenShift), self-hosted
+  object stores (minio, Ceph, Garage, SeaweedFS), self-hosted databases,
+  HashiCorp stack (Vault, Consul, Nomad), self-hosted IdPs (Keycloak,
+  Authentik, Zitadel, Authelia, Dex), self-hosted CI/CD (Gitea, Woodpecker,
+  Drone, Jenkins), self-hosted mail/messaging.
+- **Not supported (v0.1):** hyperscaler clouds (AWS / GCP / Azure /
+  Oracle / IBM), Windows hosts, Active Directory, Microsoft 365, Azure AD
+  / Entra, Exchange, SharePoint, Defender/Sentinel-owned detection stacks.
+  A customer who runs on any of those uses a different product. We are
+  not the product for them in v0.1 — and we say so up front, not after
+  they've signed.
 
 The product is sold to:
 
-| Buyer                              | Job-to-be-done                                                                                |
-| ---------------------------------- | --------------------------------------------------------------------------------------------- |
-| MSSPs / boutique pentest firms     | 5–10× consultant throughput; consistent quality; junior staff produce senior-level reports.   |
-| Enterprise internal red teams      | Continuous, scoped testing of new releases without scaling headcount.                         |
-| Bug bounty triage teams            | Triage, dedupe, and reproduce inbound submissions at machine speed.                           |
-| Compliance-driven mid-market       | Quarterly attested pentests at a price point that previously bought one consultant-week.      |
+| Buyer                                 | Job-to-be-done                                                                                |
+| ------------------------------------- | --------------------------------------------------------------------------------------------- |
+| MSSPs / boutique pentest firms        | 5–10× consultant throughput on self-hosted infra engagements; junior staff ship senior-level reports. |
+| Startup / scale-up internal red teams | Continuous, scoped testing of self-hosted Kubernetes + service stack.                         |
+| Open-source security researchers      | Authorized testing of self-hosted OSS deployments on customer hardware.                       |
+| Compliance-driven mid-market (Linux)  | Quarterly attested pentests at a price point that previously bought one consultant-week.      |
 
 We **explicitly do not** sell to: unaffiliated individuals targeting third
-parties, governments without published rules of engagement, or anyone who
-declines to sign an LOA naming the assets in scope.
+parties, anyone who declines to sign an LOA naming the assets in scope, or
+customers whose primary stack is Windows / Active Directory / hyperscaler
+/ Microsoft 365.
 
 ---
 
@@ -74,8 +92,8 @@ These are non-negotiable and every agent persona must inherit them.
 ```
 
 Each arrow is a **handoff contract**: a JSON document on the engagement bus
-(local on-disk in CLI mode, durable in SaaS mode) that downstream skills read
-and that the audit log indexes.
+(on-disk under `~/.redstack/engagements/<id>/` on the operator's Mac) that
+downstream skills read and that the audit log indexes.
 
 The customer can pause, resume, scope-down, or terminate at any arrow.
 
@@ -97,14 +115,14 @@ The customer can pause, resume, scope-down, or terminate at any arrow.
 
 | Skill     | Role                                                                              | Forked from gstack |
 | --------- | --------------------------------------------------------------------------------- | ------------------ |
-| `/recon`  | Passive OSINT (certs, DNS, GitHub, breach data) + active enumeration of in-scope. | `investigate`      |
+| `/recon`  | Passive OSINT (certs, DNS, public code forges, breach data) + active enumeration of in-scope. | `investigate`      |
 
 ### 4.3 Surface-specialist vulnerability hunters
 
 | Skill              | Surface                                                                              | Forked from gstack          |
 | ------------------ | ------------------------------------------------------------------------------------ | --------------------------- |
 | `/web-app`         | OWASP Top 10 + business logic; orchestrates ZAP/nuclei/Burp; drives `/browse`.       | `qa` + `cso`                |
-| `/cloud-audit`     | AWS/GCP/Azure misconfig (Prowler, ScoutSuite, custom CSPM rules).                    | `cso`                       |
+| `/cloud-audit`     | Self-hosted infrastructure config audit: Kubernetes, object stores (minio / Ceph / Garage), databases, HashiCorp stack. Drives kube-bench, kubescape, trivy, checkov, KICS. | `cso`                       |
 | `/source-review`   | SAST (Semgrep, CodeQL), secrets (trufflehog), SCA, IaC (checkov).                    | `review` + `cso`            |
 | `/binary-analysis` | Reverse engineering, fuzzing, dependency CVE matching for compiled artifacts.        | `investigate`               |
 | `/network`         | Service enumeration, protocol-level testing, lateral path discovery.                 | new                         |
@@ -193,11 +211,15 @@ Refusals are logged with reason and surfaced to the operator in real time.
 
 ## 6. Data flow & handoff contracts
 
-All inter-skill state lives on the **engagement bus**:
+All inter-skill state lives on the **engagement bus**, which is just a
+directory on the operator's MacBook:
 
-- **CLI deploy:** `~/.redstack/engagements/<eng-id>/` (JSONL events,
-  artifacts, scope.yaml.signed, audit.log).
-- **SaaS deploy:** Postgres + S3 (per-tenant KMS keys, immutable audit table).
+- `~/.redstack/engagements/<eng-id>/` — JSONL events, artifacts,
+  `scope.yaml.signed`, `audit.jsonl`, findings, tool output.
+- SQLite for indexable tables (findings, audit, asset inventory).
+- Per-engagement symmetric key stored in the macOS Keychain; engagement
+  key fingerprint written in `engagement.json`. Key destruction ⇒
+  cryptographic deletion of the engagement's evidence.
 
 Handoff documents are JSON Schema-validated. Core schemas:
 
@@ -216,89 +238,125 @@ vector, EPSS score, evidence references, dedupe hash, and a remediation hint.
 
 ## 7. Audit log & chain of custody
 
-- Append-only JSONL, optionally mirrored to immutable storage (AWS Object
-  Lock, GCS retention policies).
-- Every entry signed with the engagement key; periodic Merkle-root anchoring
-  to a customer-chosen ledger (internal PKI, Sigstore, or transparency log).
-- Retention: 7 years default, customer-configurable. Customer can request
-  cryptographic deletion (key destruction) at any time.
-- Exportable as a single signed bundle for SOC 2 / ISO 27001 evidence.
+- Append-only JSONL on the operator's Mac at
+  `~/.redstack/engagements/<eng-id>/audit.jsonl`. `fsync` after every
+  entry. macOS APFS snapshots provide a point-in-time recovery surface.
+- Every entry signed with the per-engagement Ed25519 key (stored in the
+  macOS Keychain). Entries form a hash-linked chain via `parent_id`.
+- Optional periodic Merkle-root anchoring to a customer-chosen
+  transparency log (Sigstore / Rekor / an internal self-hosted
+  transparency log). Anchoring is opt-in per engagement.
+- Retention: as long as the operator keeps the engagement directory.
+  Customer can request cryptographic deletion at any time by destroying
+  the engagement key from the Keychain.
+- Exportable as a single signed tarball (`redstack audit export`) for
+  the customer's compliance evidence.
 
 ---
 
-## 8. Deployment models
+## 8. Deployment model
 
-| Mode                | Topology                                                                | When to choose                                       |
-| ------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------- |
-| **CLI / consultant**| Skills install to `~/.claude/skills/redstack/` on the operator's box.   | MSSP per-consultant, individual researchers.         |
-| **Team / on-prem**  | Skills + engagement bus on a hardened appliance inside customer VPC.    | Enterprise internal red teams, regulated industries. |
-| **SaaS multi-tenant** | Hosted control plane, customer-isolated worker pools per engagement. | Mid-market, bug bounty triage, scale.                |
+**v0.1 is MacBook-only, one deploy shape.** Everything runs on the
+operator's Mac. No server component, no SaaS control plane, no
+appliance.
 
-All modes share the same SKILL.md files; only the engagement bus and
-authentication backend swap.
+| Component            | Location                                                                     |
+| -------------------- | ---------------------------------------------------------------------------- |
+| Skills               | `~/.claude/skills/redstack/` (symlinked by `./setup`).                       |
+| CLI binary           | `/usr/local/bin/redstack` (Homebrew) or `/opt/homebrew/bin/redstack` (arm64). |
+| Engagement bus       | `~/.redstack/engagements/<eng-id>/` on the Mac.                              |
+| Keys                 | macOS Keychain (engagement-scoped Ed25519 + symmetric keys).                 |
+| Tool wrappers        | Bundled with the CLI; shell out to scanners via sandboxed subprocesses.      |
+| Browser automation   | gstack's `browse/` binary, macOS build.                                      |
+| Collaboration        | Operators share engagement bundles (signed tarballs) out-of-band.            |
+
+**Future (v0.2+; not committed):** team mode (shared bus across Macs
+via a self-hosted sync endpoint the customer provisions). Not SaaS,
+not multi-tenant, not hosted by us.
 
 ---
 
 ## 9. Tech stack
 
-- **Agent host:** Claude Code (primary), with portability stubs for Codex,
-  Cursor, Factory Droid, OpenCode (mirrors gstack's `hosts/` adapter pattern).
+- **Operator OS:** macOS only (Monterey 12+). arm64 + x86_64 universal
+  binary. Codesigned + notarized; Gatekeeper-friendly.
+- **Agent host:** Claude Code (primary), with portability stubs for
+  Codex, Cursor, Factory Droid, OpenCode (mirrors gstack's `hosts/`
+  adapter pattern).
 - **Skill format:** Markdown with YAML frontmatter (gstack-compatible).
-- **Browser automation:** reuse gstack's `browse/` Playwright-based binary.
-- **Tool orchestration:** shell-out wrappers for ZAP, nuclei, nmap, semgrep,
-  trufflehog, prowler, ScoutSuite, checkov, ffuf, sqlmap, mitmproxy, etc.
-  Each wrapper enforces scope-guard *before* invoking the underlying tool.
-- **Engagement bus:** SQLite (CLI), Postgres + S3 (SaaS).
-- **Signing / crypto:** libsodium / age for keys, Sigstore for log anchoring.
-- **Languages:** TypeScript (CLI + bus + adapters), Python only where the
-  tool ecosystem requires it (e.g., custom Semgrep rules).
+- **Container runtime for local lab:** OrbStack or Docker Desktop (the
+  operator picks; both work). Scanners that need Linux run inside
+  ephemeral containers.
+- **Browser automation:** gstack's `browse/` Playwright binary, macOS
+  build.
+- **Tool orchestration:** scope-gated shell-out wrappers for ZAP, nuclei,
+  nmap, semgrep, trufflehog, checkov, KICS, tfsec, conftest, kube-bench,
+  kube-hunter, kubescape, trivy, ffuf, sqlmap, mitmproxy, syft, grype,
+  osv-scanner, testssl.sh, sslyze. Windows-only tooling (Mimikatz,
+  PsExec, Rubeus, BloodHound collectors, etc.) is **not bundled** — no
+  Windows / AD targets are in scope.
+- **Engagement bus:** SQLite on the Mac + JSONL artifacts. No network
+  component.
+- **Signing / crypto:** libsodium + macOS Keychain. Sigstore Rekor
+  client for optional transparency-log anchoring.
+- **Languages:** TypeScript (CLI + bus + adapters), compiled to a
+  single Bun binary per arch. Python only where the tool ecosystem
+  requires it (custom Semgrep rules).
+- **Distribution:** Homebrew tap (`brew install redstack/tap/redstack`).
+  Direct binary + `.pkg` installer as fallback.
 
 ---
 
 ## 10. Compliance posture (target state for v1.0)
 
-- SOC 2 Type II within 12 months of GA.
-- ISO 27001 annex A controls mapped to product features (audit log, access
-  control, key management).
-- HIPAA BAA available for customers handling PHI.
-- GDPR Art. 28 DPA template; EU data residency option in SaaS.
-- Customer DPO contact required at LOA signing.
-- Sub-processor list public; customer can veto sub-processors per-engagement.
+Simplified by the MacBook-only shape: no SaaS, no data residency, no
+sub-processors, no customer data ever leaves the operator's Mac.
+
+- No SOC 2 needed for v0.1 (we don't operate a service). A future Team
+  mode may require it.
+- ISO 27001 annex A: relevant controls for a CLI product (audit log,
+  access control, key management) documented in `AUTHORIZATION.md`.
+- GDPR: we never process customer personal data on our servers (we
+  don't have servers). Operator-on-Mac handling is documented for the
+  customer's DPO if requested.
+- HIPAA: customers handling PHI run redstack locally; no BAA with us
+  is needed because we never receive their data. Operator's Mac must
+  meet the customer's endpoint hygiene baseline — documented at intake.
+- Customer DPO contact encouraged at LOA signing.
 
 ---
 
-## 11. Packaging (v1.0 working assumption)
+## 11. Packaging (v0.1 working assumption)
 
-| Tier              | Audience                       | Includes                                                  |
-| ----------------- | ------------------------------ | --------------------------------------------------------- |
-| **Operator**      | Solo consultant / researcher   | CLI, all skills, BYO Claude Code + tools, community Slack |
-| **Team**          | Pentest firm / internal RT     | Operator + on-prem appliance + audit bundle export + SSO  |
-| **Enterprise**    | Regulated mid-market / large   | Team + SaaS option, dedicated SE, custom skill packs      |
-| **Bounty triage** | Bug bounty platforms / brands  | API-first, dedupe + repro focus, no exploit-poc by default|
+| Tier                 | Audience                         | Includes                                                  |
+| -------------------- | -------------------------------- | --------------------------------------------------------- |
+| **Operator (OSS)**   | Solo consultant / researcher     | CLI, all skills, Homebrew install, BYO Claude Code.       |
+| **Operator Pro**     | Paid tier for individuals        | All of Operator + signed-scope tooling + priority support. |
+| **Team (pilot)**     | MSSP / internal RT on Macs       | Operator Pro + shared engagement bundles + per-engagement billing. |
 
-Pricing model: per-active-engagement-month with a floor; not per-finding (no
-incentive misalignment).
+Pricing model: per-active-engagement-month with a floor; not per-finding
+(no incentive misalignment). No SaaS tier in v0.1.
 
 ---
 
 ## 12. Open questions for the next design pass
 
 1. **Plug-in surface for customer-specific tools.** Many customers have
-   licensed scanners (Burp Pro, Tenable, Qualys). How do their results join
-   the engagement bus without us reimplementing each integration?
-2. **Multi-operator collaboration.** Two consultants on one engagement —
-   conflict resolution on the bus, branch-style worktrees, or hard locks?
-3. **Customer self-service scoping.** Can customers safely author their own
-   scope.yaml, or do we require a redstack engagement engineer to derive it
-   from the LOA narrative?
-4. **Exploit-PoC review board.** Should every PoC require a second-agent or
-   second-human review before execution? Default ON for production-class
-   targets is the conservative answer.
-5. **Telemetry.** Opt-in only, never includes target identifiers, payloads,
-   findings, or customer code. Mirror gstack's stance.
-6. **Open core vs closed.** gstack is MIT. We can plausibly open-source the
-   skill personas + scope-guard, hold the SaaS control plane and the
-   compliance bundle proprietary. Decide before naming the repo.
+   licensed scanners (Burp Pro, Tenable, Qualys). How do their results
+   join the engagement bus without us reimplementing each integration?
+2. **Multi-operator collaboration.** Two consultants on one engagement
+   on two Macs — shared engagement bundle sync (user-provisioned S3-compat
+   endpoint on their self-hosted infra) vs hard one-Mac-per-engagement?
+3. **Customer self-service scoping.** Can customers safely author their
+   own `scope.yaml`, or do we require a redstack engagement engineer to
+   derive it from the LOA narrative?
+4. **Exploit-PoC review board.** Should every PoC require a second-agent
+   or second-human review before execution? Default ON for crown-jewel
+   assets is the conservative answer.
+5. **Telemetry.** Opt-in only, never includes target identifiers,
+   payloads, findings, or customer code. Mirror gstack's stance.
+6. **License.** gstack is MIT. redstack v0.1 ships MIT too; the
+   authorization-first architecture is the moat, not the source.
 
 ---
 
@@ -317,9 +375,12 @@ incentive misalignment).
 1. **M1 — Scaffold (next).** Materialize `redstack/` with all 18 SKILL.md
    stubs, `lib/scope-guard.md`, `lib/audit-log.md`, `scope.example.yaml`,
    `CLAUDE.md`, `README.md`, `LICENSE`, `VERSION`.
-2. **M2 — Reference engagement.** End-to-end demo against a deliberately
-   vulnerable target (DVWA + a contrived AWS sandbox), running `/office-hours
-   → /recon → /web-app → /cloud-audit → /triage → /reporter`.
+2. **M2 — Reference engagement.** End-to-end demo against a MacBook-local,
+   reproducible lab: DVWA in Docker Compose + minio (S3-compat object
+   store) + self-hosted Postgres + Keycloak + k3d (k3s-in-Docker) for
+   the cloud-audit surface. No real cloud accounts needed. Runs
+   `/office-hours → /recon → /web-app → /cloud-audit → /triage →
+   /reporter` end-to-end on a MacBook in under 30 minutes.
 3. **M3 — Authorization spine.** Real Ed25519 signing of scope files, audit
    log anchoring, kill-switch wired through.
 4. **M4 — First design partner.** One MSSP, one enterprise internal RT.

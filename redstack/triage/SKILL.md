@@ -99,7 +99,7 @@ For every finding:
 For each finding, check `scope` exceptions:
 
 - If the customer documented a specific asset as a known-safe
-  exception (e.g., "the public S3 bucket `acme-public-assets` is
+  exception (e.g., "the public object bucket `acme-public-assets` is
   intentional"), the finding's status transitions to `wont-fix` with
   the scope exception id attached. This is not a dedupe; it's a
   record of acknowledged risk.

@@ -2,25 +2,29 @@
 name: cloud-audit
 version: 0.1.0
 description: |
-  Cloud configuration audit for in-scope AWS / GCP / Azure accounts.
-  Read-only by default. Drives Prowler, ScoutSuite, cloudsplaining, and a
-  redstack rule pack that extends CIS / NIST baselines with attacker-centric
-  checks (public data stores, role-chaining, stale IAM, overly permissive
-  trust policies). Produces Findings in `lib/finding-schema` format.
-  Use when: engagement is active, `asset_inventory.json` lists cloud
-  accounts, and the operator says "audit AWS/GCP/Azure", "cloud misconfig",
-  "CSPM".
+  Infrastructure configuration audit. Vendor-neutral: runs against
+  self-hosted Kubernetes (k3s, kind, any distro), S3-compatible object
+  stores (minio, Ceph, Garage, SeaweedFS), self-hosted databases, HashiCorp
+  stack (Vault, Consul, Nomad), container registries, and laptop-local
+  docker-compose labs. Read-only by default. Drives kube-bench, kube-hunter,
+  kubescape, trivy, checkov, KICS, tfsec, conftest, and a redstack rule
+  pack that extends CIS / NIST baselines with attacker-centric checks
+  (public data stores, identity sprawl, stale credentials, overly broad
+  trust). Produces Findings in `lib/finding-schema` format.
+  Use when: engagement is active, `asset_inventory.json` lists
+  infrastructure targets, and the operator says "audit the infra",
+  "config audit", "CSPM", "k8s hardening", "laptop lab audit".
 allowed-tools:
   - Read
   - Write
   - Bash
   - AskUserQuestion
 triggers:
-  - cloud audit
-  - aws audit
-  - gcp audit
-  - azure audit
-  - cloud misconfig
+  - infra audit
+  - config audit
+  - k8s hardening
+  - laptop lab audit
+  - cspm
 ---
 
 ## Preamble: scope-guard check
@@ -35,12 +39,20 @@ triggers:
 
 ## Role
 
-You are the cloud auditor. You operate with the customer-provided
-read-only auditor role and nothing more. You produce findings grounded
-in the actual resource state, not best-practice lists. You map each
-finding to a concrete attacker path when possible — "this S3 bucket is
-public AND contains config files that reference internal APIs" is a
-finding; "S3 bucket is public" is half a finding.
+You are the infrastructure auditor. You operate with the customer-provided
+read-only auditor credentials and nothing more. You produce findings
+grounded in the actual resource state, not best-practice lists. You map
+each finding to a concrete attacker path when possible — "this object
+bucket is public AND contains config files that reference internal APIs"
+is a finding; "bucket is public" is half a finding.
+
+The analysis is vendor-neutral: any S3-compatible object store (minio,
+Ceph RGW, Garage, SeaweedFS), any Kubernetes distribution (k3s, kind,
+kubeadm, OpenShift), any self-hosted database. If the customer happens
+to run on a hyperscaler, the same scanners apply via their vendor
+adapters — redstack does not privilege a vendor. For M2 the default
+demo environment is laptop-local Docker Compose + k3s; no external
+credentials are required.
 
 ## Inputs
 
@@ -49,7 +61,7 @@ finding; "S3 bucket is public" is half a finding.
   Stored encrypted; accessed via the scoped credential helper (M3).
   Rotated per-engagement.
 - Customer's known-safe exceptions list if they provided one (e.g.,
-  "this public CloudFront distribution is intentional").
+  "this public CDN origin is intentional").
 
 ## Method
 
@@ -64,24 +76,37 @@ finding; "S3 bucket is public" is half a finding.
 
 Run in order, each step audit-logged:
 
-1. **Prowler** CIS + NIST profiles.
-2. **ScoutSuite** (multi-cloud normalizer).
-3. **cloudsplaining** (IAM policy analysis: wildcard resources, data
-   exfil actions, privilege escalation paths).
-4. **redstack cloud rule pack** — attacker-centric checks:
-   - Publicly reachable object stores with non-empty contents.
-   - Cross-account trust policies with wildcard principals.
-   - Stale IAM: unused roles > 90 days, untagged access keys > 180 days.
-   - EKS / GKE / AKS node IAM with excess permissions.
-   - Publicly accessible databases (RDS, Cloud SQL, Cosmos) with
-     internet-routable endpoints.
-   - Storage account keys with public read.
-   - Cloud metadata service accessible from internet-reachable compute
-     (IMDSv1 on AWS, equivalent on GCP/Azure).
-   - Functions / Lambdas with overprivileged execution roles.
-   - KMS keys with public or wildcard grants.
-   - Terraform state files in public object stores.
-   - Abandoned DNS records pointing to deallocated cloud IPs
+1. **kube-bench + kubescape** — CIS Kubernetes benchmark and NSA /
+   CISA hardening checks against the cluster(s) in scope.
+2. **kube-hunter** — Kubernetes attack-surface scanner, passive mode
+   first, active mode only if the scope opts in.
+3. **trivy k8s** — workload image SBOM + misconfig + secret scan.
+4. **checkov + KICS + tfsec + conftest** — IaC scanning for Terraform,
+   Pulumi, Helm, Kustomize, Ansible, Dockerfiles, docker-compose.
+5. **cloudsplaining (vendor-neutral mode)** — identity-policy analysis
+   for any IAM-style document (Kubernetes RBAC, Vault policies,
+   OpenFGA / OpenPolicyAgent bundles).
+6. **redstack infrastructure rule pack** — attacker-centric checks:
+   - Publicly reachable object buckets with non-empty contents
+     (S3-compatible API against any host).
+   - ServiceAccount / cluster-role bindings granting `*` verbs or
+     cluster-admin-class permissions.
+   - Stale identities: unused service accounts > 90 days, un-rotated
+     static tokens > 180 days.
+   - Node identity with excess permissions (host-network pods,
+     privileged containers, hostPath mounts into sensitive paths).
+   - Publicly accessible databases and message buses with
+     internet-routable endpoints or unauthenticated listeners.
+   - Object-store HMAC keys or pre-signed URLs with public read.
+   - Instance-metadata-class endpoints reachable from workloads that
+     should not need them (IMDS-style on any substrate; k3s node
+     metadata; Nomad task endpoints).
+   - Serverless-style function workloads (Knative, OpenFaaS) running
+     with over-broad service identities.
+   - KMS / Vault transit keys with public or wildcard grants.
+   - Terraform / Pulumi state files in publicly readable buckets —
+     by far the most common foot-gun.
+   - Abandoned DNS records pointing to deallocated IPs
      (subdomain-takeover vectors; cross-reference recon).
 
 ### 3. Graph the attack paths
@@ -97,7 +122,9 @@ For each critical finding, build a reachability graph:
 ### 4. Evidence capture
 
 - Each finding includes the exact API call + response (redacted),
-  the policy document, and the resource ARN/URN.
+  the policy document, and the resource URN (vendor-neutral — use
+  the tool's native identifier, e.g., `k8s://<cluster>/<kind>/<namespace>/<name>`
+  or `s3://<endpoint>/<bucket>`).
 - `dedupe.hash` on (class, resource urn, policy hash).
 
 ## Guardrails
@@ -115,8 +142,9 @@ For each critical finding, build a reachability graph:
   chars; emit a `cloud-audit.secret_found` alert for fast remediation.
 - **Never scan a cloud account not in scope** even if a trust policy
   would grant access. Out-of-scope wins.
-- **Never disable logging / monitoring / GuardDuty / Security Hub
-  resources.** Even if the customer's auditor role somehow can.
+- **Never disable logging, auditing, or monitoring resources.** Audit
+  logs, cluster audit policies, platform alert rules — read-only always,
+  even if the customer's auditor credentials somehow permit write.
 
 ## Outputs
 
@@ -129,6 +157,6 @@ For each critical finding, build a reachability graph:
 
 - `/triage` — priority weighting.
 - `/exploit-poc` — if confirming a finding requires a scoped probe.
-- `/purple-team` — cloud-specific detections (GuardDuty, Defender for
-  Cloud, Security Command Center).
+- `/purple-team` — infrastructure detections (cluster audit logs,
+  Falco, Tetragon, Wazuh, or the customer's chosen detection stack).
 - `/reporter` — rendered as an attack-path diagram + recommendations.

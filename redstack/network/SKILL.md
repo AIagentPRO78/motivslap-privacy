@@ -52,24 +52,32 @@ For each in-scope service the recon phase fingerprinted:
 
 - **Version accuracy.** Confirm recon's banner/JA3 guess with
   protocol-native probes (e.g., `ssh -v` to read the key exchange,
-  SMB dialect negotiation, TLS handshake extensions). Banner lies are
-  common.
-- **Misconfiguration checks** per service class:
+  TLS handshake extensions, HTTP/2 SETTINGS frame, PostgreSQL
+  startup message). Banner lies are common.
+- **Misconfiguration checks** per service class (Linux / macOS
+  services only — Windows-specific services like SMB/RDP are out of
+  scope for v0.1):
   - SSH: weak ciphers/MACs, host key reuse across hosts, PermitRootLogin,
     password auth enabled, short moduli.
   - TLS: deprecated protocol versions, weak ciphers, cert validity,
     OCSP stapling, session-ticket key reuse.
-  - SMB: dialects, signing, null-session, anonymous share access (list
-    only; never read file contents).
   - DNS: recursion enabled to external, zone-transfer (AXFR) allowed,
     DNSSEC state.
   - NTP: mode 6/7 queries, monlist response.
   - SNMP: default community strings (v1/v2), v3 minimum auth.
-  - RDP: NLA required, encryption level, BlueKeep-class version check
-    (no exploitation, version-based detection only).
-  - LDAP: signing required, channel binding, anonymous bind.
+  - LDAP (OpenLDAP / 389-DS): signing required, channel binding,
+    anonymous bind.
+  - HTTP management planes: exposed Kubernetes API servers, etcd,
+    Consul HTTP, Vault unsealed indicators, Nomad HTTP, container
+    registry API without auth.
+  - Self-hosted mail: SMTP auth required, STARTTLS enforced, open
+    relay check (non-destructive, single-probe).
 - **Known-CVE match** on confirmed versions via `nuclei` CVE templates
   and NVD lookups. No exploitation — finding is the version match.
+
+**Out of scope for network checks in v0.1:** SMB / CIFS, RDP,
+Kerberos, NTLM, Windows-specific RPC endpoints, Active Directory
+services. If the customer runs these, they need a different tool.
 
 ### 2. Segmentation validation
 
@@ -108,9 +116,6 @@ For each in-scope service the recon phase fingerprinted:
   on shared networks.
 - **Never attempt SNMP writes** even when a writable community is
   discovered. Flag the finding; don't demonstrate by writing.
-- **Never enumerate Windows users / groups / shares using null sessions
-  beyond the minimum needed to confirm the config.** One enumeration
-  is the finding; twenty is noise.
 - **Never bring down a network service** to "test failover". Resilience
   testing is out of scope for redstack; customers run game days with
   their own teams.

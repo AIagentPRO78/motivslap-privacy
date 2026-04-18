@@ -26,7 +26,9 @@ Discovery:
 
 Surface specialists:
 - `/web-app` — web application vulnerability testing.
-- `/cloud-audit` — AWS / GCP / Azure configuration audit.
+- `/cloud-audit` — self-hosted infrastructure configuration audit
+  (Kubernetes, object stores, databases, HashiCorp stack). Vendor-neutral;
+  no hyperscaler support in v0.1.
 - `/source-review` — SAST + secrets + SCA + IaC.
 - `/binary-analysis` — reverse engineering and binary triage.
 - `/network` — network-layer and protocol testing.
@@ -57,7 +59,7 @@ Route the operator's request to the right skill:
 | "load the scope", "open engagement"     | `/engagement`       |
 | "what's exposed", "attack surface"      | `/recon`            |
 | "test the web app", "OWASP"             | `/web-app`          |
-| "audit AWS/GCP/Azure", "cloud misconfig"| `/cloud-audit`      |
+| "audit the infra", "k8s hardening"      | `/cloud-audit`      |
 | "review the code", "SAST", "secrets"    | `/source-review`    |
 | "reverse", "unpack", "fuzz the binary"  | `/binary-analysis`  |
 | "network scan", "enumerate services"    | `/network`          |
@@ -92,12 +94,13 @@ If the request is ambiguous, call `AskUserQuestion` — do not guess.
 
 ## Engagement bus
 
-Read/write location depends on deploy mode:
+MacBook-only. The bus is a directory on the operator's Mac:
 
-- **CLI:** `~/.redstack/engagements/<active>/`
+- `~/.redstack/engagements/<active>/`
   - `engagement.json`, `scope.yaml.signed`, `audit.jsonl`, `findings/`,
-    `artifacts/`, `bus/`.
-- **SaaS / appliance:** Postgres + S3, accessed via the redstack API.
+    `artifacts/`, `bus/`, SQLite index files.
+- Per-engagement keys in the macOS Keychain (service `com.redstack.engagement`).
+- No network component, no SaaS, no server.
 
 Skills never read or write the bus directly — they go through `lib/bus`
 helpers (M3). Until then, skills read/write JSON documents by path as
