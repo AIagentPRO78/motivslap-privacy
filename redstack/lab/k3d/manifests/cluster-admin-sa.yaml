@@ -1,0 +1,22 @@
+# Deliberately over-privileged ServiceAccount for the lab.
+# /cloud-audit should flag this as a critical RBAC finding.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lab-overbroad-sa
+  namespace: default
+  annotations:
+    redstack.lab/intentionally-vulnerable: "true"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: lab-overbroad-sa-clusteradmin
+subjects:
+  - kind: ServiceAccount
+    name: lab-overbroad-sa
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

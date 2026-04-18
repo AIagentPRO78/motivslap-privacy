@@ -1,0 +1,40 @@
+# redstack CI.
+#
+# NOTE: GitHub only activates workflows under the *repository root's*
+# .github/workflows/ directory. While redstack lives alongside
+# motivslap-privacy and gstack in this repo, this file is staged here
+# ready to move. When redstack is promoted to its own repo, move this
+# file to .github/workflows/ci.yml at the new repo root and it will
+# activate automatically.
+name: redstack ci
+on:
+  push:
+    branches: ["main"]
+    paths: ["redstack/**"]
+  pull_request:
+    paths: ["redstack/**"]
+
+jobs:
+  test:
+    # Runs on ubuntu-latest, NOT macos. The Keychain integration path
+    # is tested separately on a self-hosted MacBook runner in M4.
+    # Here we exercise the deterministic logic: canonicalization,
+    # scope-guard decisions, audit-log chain + signing, kill-switch
+    # state + latency.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: redstack
+    env:
+      REDSTACK_KEYCHAIN_STUB: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: "1.1"
+      - name: install deps
+        run: bun install --frozen-lockfile || bun install
+      - name: typecheck
+        run: bun run typecheck
+      - name: test
+        run: bun test
