@@ -1,0 +1,25 @@
+{
+  "name": "redstack",
+  "version": "0.1.0",
+  "description": "AI-driven red-teaming product built on the gstack SKILL.md persona model. Authorized security testing only.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "scope:validate": "echo 'TODO(M3): verify scope.yaml signature'",
+    "scope:example": "cat scope.example.yaml",
+    "audit:tail": "echo 'TODO(M3): tail the active engagement audit log'",
+    "kill": "echo 'TODO(M3): trigger engagement kill switch'"
+  },
+  "engines": {
+    "bun": ">=1.1",
+    "node": ">=20"
+  },
+  "keywords": [
+    "red-team",
+    "pentest",
+    "offensive-security",
+    "authorized-testing",
+    "claude-code",
+    "gstack"
+  ]
+}
