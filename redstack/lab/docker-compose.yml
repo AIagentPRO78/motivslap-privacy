@@ -1,0 +1,54 @@
+services:
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: redstack-lab-dvwa
+    ports:
+      - "127.0.0.1:8080:80"
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: redstack-lab-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: FAKEKEYLABADMIN
+      MINIO_ROOT_PASSWORD: FAKEKEYLABADMINSECRET
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: redstack-lab-postgres
+    environment:
+      POSTGRES_USER: labuser
+      POSTGRES_PASSWORD: FAKEKEYLABPGSECRET
+      POSTGRES_DB: lab
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./seed/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: redstack-lab-keycloak
+    command: start-dev --import-realm --http-port=8080
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: FAKEKEYLABKCADMIN
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - ./seed/keycloak:/opt/keycloak/data/import:ro
+      - keycloak-data:/opt/keycloak/data
+    restart: unless-stopped
+
+volumes:
+  minio-data:
+  postgres-data:
+  keycloak-data:

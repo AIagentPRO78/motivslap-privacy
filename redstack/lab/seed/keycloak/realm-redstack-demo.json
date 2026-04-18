@@ -1,0 +1,66 @@
+{
+  "realm": "redstack-demo",
+  "enabled": true,
+  "displayName": "redstack demo realm",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "_comment_password": "Deliberately weak policy for the lab: length(4). /identity should flag.",
+  "passwordPolicy": "length(4)",
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 604800,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Admin role (lab)" },
+      { "name": "user",  "description": "Standard user role (lab)" }
+    ]
+  },
+  "users": [
+    {
+      "username": "demoadmin",
+      "email": "demoadmin@example.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "FAKEKEYLABKCPWADMIN", "temporary": false }
+      ],
+      "realmRoles": ["admin", "user"]
+    },
+    {
+      "username": "demouser",
+      "email": "demouser@example.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "FAKEKEYLABKCPWUSER",  "temporary": false }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "stale",
+      "email": "stale@example.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "FAKEKEYLABKCPWSTALE", "temporary": false }
+      ],
+      "realmRoles": ["user"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "redstack-demo-app",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "_comment_audience": "Deliberately missing audience mapper — /identity OIDC audit should flag.",
+      "redirectUris": ["http://127.0.0.1:8080/*"],
+      "webOrigins": ["http://127.0.0.1:8080"]
+    }
+  ]
+}
