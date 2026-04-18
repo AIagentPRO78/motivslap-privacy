@@ -1,0 +1,28 @@
+# redstack local state (never commit)
+.redstack/
+~/.redstack/
+
+# Engagement artifacts — these contain customer findings
+engagements/
+*.engagement.json
+*.audit.log
+*.audit.jsonl
+*.scope.yaml.signed
+
+# Keys
+*.pem
+*.key
+keys/
+
+# Node / Bun
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.local
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
