@@ -1,0 +1,164 @@
+# ==========================================================================
+# redstack scope file — ANNOTATED EXAMPLE
+#
+# This file is the machine-readable Rules of Engagement. It is derived from
+# the signed LOA by a redstack engagement engineer and co-signed by the
+# customer's authorizing officer (Ed25519).
+#
+# Every skill preamble calls `lib/scope-guard` which:
+#   1. verifies this file's signature,
+#   2. matches the intended target against `targets` / `out_of_scope`,
+#   3. checks the time window, operator, and technique policy,
+#   4. emits allow/deny to the audit log.
+#
+# Out-of-scope wins every tie. Product-level refusals (see AUTHORIZATION.md
+# §4) override anything permitted here.
+#
+# redstack v0.1 is MacBook-only and targets self-hosted Linux/macOS
+# infrastructure. Hyperscalers (AWS / GCP / Azure / etc.), Windows hosts,
+# Active Directory, and Microsoft 365 are NOT supported target classes —
+# the scope schema below does not model them.
+# ==========================================================================
+
+engagement:
+  id: ENG-2026-Q2-EXAMPLE-001
+  customer: "Example Corp"
+  loa_ref: loa-2026-example-001.pdf.sha256  # SHA-256 of the attached LOA
+  authorizing_officer: "Pat Customer, CISO, pat@example.com"
+  signed_at: 2026-04-01T00:00:00Z
+  expires_at: 2026-04-30T23:59:59Z
+
+# ----------------------------------------------------------------------------
+# In-scope assets. Any asset not listed is denied by default.
+# Wildcards allowed for hostnames; CIDR ranges for IPs.
+#
+# All targets must be self-hosted Linux or macOS infrastructure the
+# customer owns and controls. Hyperscaler-hosted assets and Windows /
+# Active Directory hosts are NOT supported target classes — scope-guard
+# refuses to load a scope that lists them.
+# ----------------------------------------------------------------------------
+targets:
+  hostnames:
+    - "*.staging.example.com"
+    - "api.example.com"
+  ipv4_cidrs:
+    - "203.0.113.0/26"
+  ipv6_cidrs: []
+  # Self-hosted Kubernetes / container orchestrators the customer operates.
+  # Identify by kubeconfig context name and cluster API endpoint.
+  k8s_clusters:
+    - context: "staging-k3s"
+      api_endpoint: "https://k3s-staging.example.com:6443"
+  # Self-hosted object stores (S3-compatible API).
+  object_stores:
+    - endpoint: "https://minio-staging.example.com"
+      buckets: ["releases", "artifacts"]
+  # Self-hosted databases (Postgres, MariaDB, Redis, etc.).
+  databases:
+    - endpoint: "postgres-staging.example.com:5432"
+      engine: "postgres"
+  # Self-hosted identity providers (Keycloak / Authentik / Zitadel /
+  # Authelia / Dex). Active Directory is NOT a supported IdP class.
+  idps:
+    - endpoint: "https://auth.example.com"
+      kind: "keycloak"
+  # Repositories must be on a self-hosted forge (Gitea / Forgejo / GitLab
+  # self-managed). GitHub-hosted repos are supported ONLY if the customer
+  # treats the repo content as the tested artifact; redstack does not test
+  # GitHub.com as infrastructure.
+  repositories:
+    - "https://git.example.com/example-corp/web"
+    - "https://git.example.com/example-corp/api"
+  # Mobile test bundles — iOS (.ipa) or Android (.apk), distributed
+  # through a customer-provisioned channel, NOT via hyperscaler app stores.
+  mobile_bundles:
+    - "com.example.mobile"
+  # Phishing recipients must be a pre-approved list with an HR sign-off
+  # hash. `/phishing-sim` refuses to run without this.
+  phishing_recipients_ref: null
+
+# ----------------------------------------------------------------------------
+# Explicit exclusions. Even if a wildcard in `targets` would catch these,
+# they are denied. This is where the customer carves out production systems,
+# third-party-managed surfaces, or anything with regulatory constraints.
+# ----------------------------------------------------------------------------
+out_of_scope:
+  hostnames:
+    - "*.prod.example.com"
+    - "payments.example.com"
+  ipv4_cidrs: []
+  data_classes:
+    - "customer_pii"
+    - "phi"
+    - "payment_card_data"
+
+# ----------------------------------------------------------------------------
+# Time windows (UTC). Active work outside these windows is refused.
+# Operational hours let the customer restrict to business hours so their
+# SOC is staffed during the engagement.
+# ----------------------------------------------------------------------------
+time_windows:
+  utc_start: 2026-04-01T00:00:00Z
+  utc_end:   2026-04-30T23:59:59Z
+  operational_hours:
+    monday:    ["13:00", "21:00"]
+    tuesday:   ["13:00", "21:00"]
+    wednesday: ["13:00", "21:00"]
+    thursday:  ["13:00", "21:00"]
+    friday:    ["13:00", "17:00"]
+    saturday:  []
+    sunday:    []
+
+# ----------------------------------------------------------------------------
+# Rate + concurrency caps. scope-guard enforces these before any shell-out
+# to a scanner. Tune conservatively; customers can raise them later.
+# ----------------------------------------------------------------------------
+intensity:
+  max_rps_per_host: 25
+  max_parallel_hosts: 16
+  max_bandwidth_mbps_egress: 50
+
+# ----------------------------------------------------------------------------
+# Technique policy.
+#
+# `forbidden_techniques` — customer vetoes (ADDS to product-level refusals).
+# `required_techniques`  — customer mandates; agents must cover these.
+#
+# Allowed values live in `lib/scope-guard.md` §4. Scope-guard refuses to
+# load a scope file that references unknown technique keys.
+# ----------------------------------------------------------------------------
+forbidden_techniques:
+  - "credential_testing_against_prod_idp"
+  - "dns_rebinding"
+  - "deserialization_fuzzing"
+
+required_techniques:
+  - "waf_bypass_coverage"
+  - "dependency_sca_full"
+
+# ----------------------------------------------------------------------------
+# Notifications. Critical findings page the SOC; kill-switch contacts are
+# the humans who can halt the engagement.
+# ----------------------------------------------------------------------------
+notifications:
+  critical_findings:
+    - "soc@example.com"
+  kill_switch_contacts:
+    - "pat@example.com"
+    - "+1-555-0100"
+
+# ----------------------------------------------------------------------------
+# Allowed operators. Only these accounts may invoke skills under this
+# engagement. Rotate via an LOA addendum, never silently.
+# ----------------------------------------------------------------------------
+operators:
+  - "alex@redstack-mssp.example"
+  - "sam@redstack-mssp.example"
+
+# ----------------------------------------------------------------------------
+# Signature (appended by the signing tool, never hand-edited).
+# ----------------------------------------------------------------------------
+signature:
+  algo: ed25519
+  key_fingerprint: "SHA256:REPLACE_ME"
+  value: "REPLACE_ME_BASE64"
