@@ -1,0 +1,18 @@
+# Deliberately public-exposed NodePort service for the lab.
+# /recon + /cloud-audit should flag this as an unintended-exposure finding.
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-public-exposure
+  namespace: default
+  annotations:
+    redstack.lab/intentionally-vulnerable: "true"
+spec:
+  type: NodePort
+  selector:
+    app: lab-privileged
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      nodePort: 30080

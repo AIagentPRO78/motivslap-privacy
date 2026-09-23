@@ -1,0 +1,40 @@
+{
+  "name": "redstack",
+  "version": "0.1.0",
+  "description": "AI-driven red-teaming product. MacBook-only operator; self-hosted Linux/macOS targets. Authorized security testing only.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "scope:example": "cat scope.example.yaml",
+    "typecheck": "tsc --noEmit",
+    "lab:up": "bash lab/up.sh",
+    "lab:down": "bash lab/down.sh"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.4.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "bun-types": "^1.1.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "bun": ">=1.1",
+    "node": ">=20"
+  },
+  "os": ["darwin"],
+  "keywords": [
+    "red-team",
+    "pentest",
+    "offensive-security",
+    "authorized-testing",
+    "macbook",
+    "self-hosted",
+    "claude-code",
+    "gstack"
+  ]
+}
